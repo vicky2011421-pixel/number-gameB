@@ -1,50 +1,295 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Number Game</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Number Analytics Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
+
 body{
 font-family:Arial;
-background:#111;
+background:#0f172a;
 color:white;
+margin:0;
+}
+
+header{
+background:#ef4444;
+padding:15px;
 text-align:center;
-}
-
-#number{
-font-size:60px;
-margin:20px;
-}
-
-button{
-padding:12px 25px;
 font-size:20px;
+}
+
+.container{
+padding:15px;
+}
+
+.card{
+background:#1e293b;
+border-radius:10px;
+padding:15px;
+margin-bottom:15px;
+}
+
+.stats{
+display:flex;
+justify-content:space-between;
+}
+
+.stat{
+font-size:18px;
+}
+
+#timer{
+font-size:22px;
+text-align:center;
+margin-top:10px;
+}
+
+#result{
+font-size:60px;
+text-align:center;
 margin:10px;
+}
+
+.trend{
+display:grid;
+grid-template-columns:repeat(10,1fr);
+gap:4px;
+}
+
+.cell{
+padding:8px;
+text-align:center;
+border-radius:4px;
+font-size:12px;
+}
+
+.big{background:#f59e0b;}
+.small{background:#3b82f6;}
+
+canvas{
+background:#0f172a;
+}
+
+input{
+padding:10px;
 border:none;
 border-radius:6px;
 }
 
-.big{background:green;color:white;}
-.small{background:red;color:white;}
+button{
+padding:10px 15px;
+border:none;
+border-radius:6px;
+background:#22c55e;
+color:white;
+}
+
 </style>
+
 </head>
 
 <body>
 
-<h1>Number Game</h1>
+<header>
+Number Analytics
+</header>
 
-<div id="number">0</div>
+<div id="loginPage" class="container">
 
-<button class="big">Big</button>
-<button class="small">Small</button>
+<div class="card">
+
+<h3>Login</h3>
+
+<input id="username" placeholder="Username">
+
+<br><br>
+
+<button onclick="login()">Enter</button>
+
+</div>
+
+</div>
+
+<div id="app" style="display:none">
+
+<div class="container">
+
+<div class="card">
+
+<div>Welcome <span id="userDisplay"></span></div>
+
+<div id="timer">Next round in: 30</div>
+
+<div id="result">-</div>
+
+</div>
+
+<div class="card stats">
+
+<div class="stat">
+Big<br>
+<span id="bigCount">0</span>
+</div>
+
+<div class="stat">
+Small<br>
+<span id="smallCount">0</span>
+</div>
+
+</div>
+
+<div class="card">
+
+<canvas id="chart"></canvas>
+
+</div>
+
+<div class="card">
+
+<h3>Trend Board</h3>
+
+<div id="trend" class="trend"></div>
+
+</div>
+
+</div>
+
+</div>
 
 <script>
 
-function generate(){
-let num=Math.floor(Math.random()*10);
-document.getElementById("number").innerText=num;
+let round=1
+let countdown=30
+let history=JSON.parse(localStorage.getItem("history")||"[]")
+
+let bigCount=0
+let smallCount=0
+
+history.forEach(h=>{
+ if(h.size==="Big") bigCount++
+ else smallCount++
+})
+
+const ctx=document.getElementById('chart')
+
+const chart=new Chart(ctx,{
+type:'line',
+data:{
+labels:[],
+datasets:[{
+label:'Number',
+data:[],
+borderColor:'#22c55e',
+tension:0.3
+}]
+}
+})
+
+function login(){
+
+let user=document.getElementById("username").value
+
+if(!user) return alert("Enter username")
+
+localStorage.setItem("demoUser",user)
+
+startApp()
+
 }
 
-setInterval(generate,5000);
+function startApp(){
+
+let user=localStorage.getItem("demoUser")
+
+document.getElementById("loginPage").style.display="none"
+
+document.getElementById("app").style.display="block"
+
+document.getElementById("userDisplay").innerText=user
+
+renderTrend()
+
+}
+
+function getSize(n){
+
+return n>=5?"Big":"Small"
+
+}
+
+function generate(){
+
+let num=Math.floor(Math.random()*10)
+
+let size=getSize(num)
+
+document.getElementById("result").innerText=num
+
+history.unshift({round,num,size})
+
+if(size==="Big") bigCount++
+else smallCount++
+
+if(history.length>300) history.pop()
+
+localStorage.setItem("history",JSON.stringify(history))
+
+chart.data.labels.push(round)
+chart.data.datasets[0].data.push(num)
+chart.update()
+
+document.getElementById("bigCount").innerText=bigCount
+document.getElementById("smallCount").innerText=smallCount
+
+renderTrend()
+
+round++
+
+}
+
+function renderTrend(){
+
+let board=document.getElementById("trend")
+
+board.innerHTML=""
+
+history.slice(0,100).forEach(h=>{
+
+let cell=document.createElement("div")
+
+cell.className="cell "+(h.size==="Big"?"big":"small")
+
+cell.innerText=h.num
+
+board.appendChild(cell)
+
+})
+
+}
+
+setInterval(function(){
+
+countdown--
+
+document.getElementById("timer").innerText="Next round in: "+countdown
+
+if(countdown===0){
+
+generate()
+
+countdown=30
+
+}
+
+},1000)
+
+if(localStorage.getItem("demoUser")) startApp()
 
 </script>
 
