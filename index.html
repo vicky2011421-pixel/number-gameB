@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Number Game</title>
+<style>
+body{
+font-family:Arial;
+background:#111;
+color:white;
+text-align:center;
+}
+
+#number{
+font-size:60px;
+margin:20px;
+}
+
+button{
+padding:12px 25px;
+font-size:20px;
+margin:10px;
+border:none;
+border-radius:6px;
+}
+
+.big{background:green;color:white;}
+.small{background:red;color:white;}
+</style>
+</head>
+
+<body>
+
+<h1>Number Game</h1>
+
+<div id="number">0</div>
+
+<button class="big">Big</button>
+<button class="small">Small</button>
+
+<script>
+
+function generate(){
+let num=Math.floor(Math.random()*10);
+document.getElementById("number").innerText=num;
+}
+
+setInterval(generate,5000);
+
+</script>
+
+</body>
+</html>
