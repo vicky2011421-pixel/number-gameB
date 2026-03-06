@@ -3,45 +3,88 @@
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>NumberLab Analytics</title>
+<title>Number Pattern Analytics</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
+<style>
+
+body{
+background:linear-gradient(135deg,#0f172a,#020617);
+color:white;
+font-family:sans-serif;
+}
+
+.glass{
+background:rgba(255,255,255,0.05);
+backdrop-filter:blur(8px);
+border-radius:14px;
+padding:16px;
+}
+
+.number{
+font-size:80px;
+text-align:center;
+animation:pulse 1s infinite alternate;
+}
+
+@keyframes pulse{
+from{transform:scale(1)}
+to{transform:scale(1.12)}
+}
+
+</style>
+
 </head>
 
-<body class="bg-gray-900 text-white">
+<body>
 
-<div class="bg-red-500 p-4 text-center text-xl font-bold">
-NumberLab Analytics
+<div class="p-4 text-center text-2xl font-bold">
+Number Pattern Analytics
 </div>
 
-<div class="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="p-4 grid grid-cols-2 gap-3">
 
-<div class="bg-gray-800 p-4 rounded-xl">
-<div class="text-gray-400">Current Number</div>
-<div id="result" class="text-5xl text-center mt-4">-</div>
-<div id="timer" class="text-center text-sm mt-2">Next round: 30</div>
+<div class="glass text-center">
+Timer
+<div id="timer" class="text-3xl mt-2">30</div>
 </div>
 
-<div class="bg-gray-800 p-4 rounded-xl">
-<div class="text-gray-400">Big Count</div>
-<div id="bigCount" class="text-3xl">0</div>
-</div>
-
-<div class="bg-gray-800 p-4 rounded-xl">
-<div class="text-gray-400">Small Count</div>
-<div id="smallCount" class="text-3xl">0</div>
+<div class="glass text-center">
+Rounds
+<div id="rounds" class="text-3xl mt-2">0</div>
 </div>
 
 </div>
 
 <div class="p-4">
 
-<div class="bg-gray-800 p-4 rounded-xl">
+<div class="glass">
 
-<canvas id="chart"></canvas>
+<div id="result" class="number">-</div>
+
+<div class="text-center text-gray-400 mt-2">
+Prediction: <span id="prediction">--</span>
+</div>
+
+</div>
+
+</div>
+
+<div class="p-4 grid grid-cols-2 gap-3">
+
+<div class="glass text-center">
+
+Big Count
+<div id="bigCount" class="text-3xl mt-2">0</div>
+
+</div>
+
+<div class="glass text-center">
+
+Small Count
+<div id="smallCount" class="text-3xl mt-2">0</div>
 
 </div>
 
@@ -49,11 +92,65 @@ NumberLab Analytics
 
 <div class="p-4">
 
-<div class="bg-gray-800 p-4 rounded-xl">
+<div class="glass">
 
-<h2 class="text-lg mb-3">Trend Board</h2>
+<canvas id="lineChart"></canvas>
 
-<div id="trend" class="grid grid-cols-10 gap-2"></div>
+</div>
+
+</div>
+
+<div class="p-4">
+
+<div class="glass">
+
+<canvas id="barChart"></canvas>
+
+</div>
+
+</div>
+
+<div class="p-4">
+
+<div class="glass">
+
+<h2 class="mb-3">Trend Heatmap</h2>
+
+<div id="heatmap" class="grid grid-cols-10 gap-1"></div>
+
+</div>
+
+</div>
+
+<div class="p-4">
+
+<div class="glass">
+
+<h2 class="mb-3">History (300)</h2>
+
+<button onclick="exportCSV()" class="bg-green-500 px-3 py-1 rounded mb-2">
+Export CSV
+</button>
+
+<div style="max-height:200px;overflow:auto">
+
+<table class="w-full text-sm">
+
+<thead>
+
+<tr>
+<th>Round</th>
+<th>Number</th>
+<th>Size</th>
+</tr>
+
+</thead>
+
+<tbody id="historyTable"></tbody>
+
+</table>
+
+</div>
 
 </div>
 
@@ -61,89 +158,151 @@ NumberLab Analytics
 
 <script>
 
+let timer=30
+let round=0
+
 let history=[]
-let countdown=30
+
 let bigCount=0
 let smallCount=0
 
-const ctx=document.getElementById("chart")
-
-const chart=new Chart(ctx,{
+const lineChart=new Chart(
+document.getElementById("lineChart"),
+{
 type:'line',
-data:{
-labels:[],
-datasets:[{
-label:'Numbers',
-data:[],
-borderColor:'#22c55e',
-tension:0.4
-}]
-}
+data:{labels:[],datasets:[{data:[],borderColor:'#22c55e'}]},
+options:{plugins:{legend:{display:false}},scales:{y:{min:0,max:9}}}
 })
 
-function getSize(n){
+const barChart=new Chart(
+document.getElementById("barChart"),
+{
+type:'bar',
+data:{
+labels:["Big","Small"],
+datasets:[{data:[0,0],backgroundColor:["#f59e0b","#3b82f6"]}]
+},
+options:{plugins:{legend:{display:false}}}
+})
 
-return n>=5?"Big":"Small"
+function prediction(){
 
-}
+let last=history.slice(0,5)
 
-function generate(){
+let big=0
+let small=0
 
-let num=Math.floor(Math.random()*10)
+last.forEach(h=>{
+if(h.size==="Big") big++
+else small++
+})
 
-document.getElementById("result").innerText=num
-
-let size=getSize(num)
-
-history.unshift({num,size})
-
-if(size==="Big") bigCount++
-else smallCount++
-
-if(history.length>300) history.pop()
-
-document.getElementById("bigCount").innerText=bigCount
-document.getElementById("smallCount").innerText=smallCount
-
-chart.data.labels.push(history.length)
-chart.data.datasets[0].data.push(num)
-chart.update()
-
-renderTrend()
+return big>small?"Small":"Big"
 
 }
 
-function renderTrend(){
+function renderHeatmap(){
 
-let board=document.getElementById("trend")
+let board=document.getElementById("heatmap")
 
 board.innerHTML=""
 
 history.slice(0,100).forEach(h=>{
 
-let cell=document.createElement("div")
+let d=document.createElement("div")
 
-cell.className="p-2 text-center rounded "+(h.size==="Big"?"bg-yellow-500":"bg-blue-500")
+d.className="p-1 text-center rounded "+(h.size==="Big"?"bg-yellow-500":"bg-blue-500")
 
-cell.innerText=h.num
+d.innerText=h.num
 
-board.appendChild(cell)
+board.appendChild(d)
 
 })
 
 }
 
+function renderHistory(){
+
+let table=document.getElementById("historyTable")
+
+table.innerHTML=""
+
+history.slice(0,300).forEach(h=>{
+
+let r=document.createElement("tr")
+
+r.innerHTML=
+
+"<td>"+h.round+"</td>"+
+"<td>"+h.num+"</td>"+
+"<td>"+h.size+"</td>"
+
+table.appendChild(r)
+
+})
+
+}
+
+function generate(){
+
+let n=Math.floor(Math.random()*10)
+
+round++
+
+let size=n>=5?"Big":"Small"
+
+history.unshift({round:round,num:n,size:size})
+
+if(size==="Big") bigCount++
+else smallCount++
+
+document.getElementById("result").innerText=n
+document.getElementById("rounds").innerText=round
+
+document.getElementById("bigCount").innerText=bigCount
+document.getElementById("smallCount").innerText=smallCount
+
+document.getElementById("prediction").innerText=prediction()
+
+lineChart.data.labels.push(round)
+lineChart.data.datasets[0].data.push(n)
+lineChart.update()
+
+barChart.data.datasets[0].data=[bigCount,smallCount]
+barChart.update()
+
+renderHeatmap()
+renderHistory()
+
+}
+
+function exportCSV(){
+
+let rows=history.map(h=>`${h.round},${h.num},${h.size}`)
+
+let blob=new Blob([rows.join("\n")],{type:"text/csv"})
+
+let a=document.createElement("a")
+
+a.href=URL.createObjectURL(blob)
+
+a.download="history.csv"
+
+a.click()
+
+}
+
 setInterval(()=>{
 
-countdown--
+timer--
 
-document.getElementById("timer").innerText="Next round: "+countdown
+document.getElementById("timer").innerText=timer
 
-if(countdown===0){
+if(timer<=0){
 
 generate()
 
-countdown=30
+timer=30
 
 }
 
