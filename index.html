@@ -3,8 +3,7 @@
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>Number Analytics Dashboard</title>
+<title>Number Analytics App</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -19,7 +18,7 @@ margin:0;
 
 header{
 background:#ef4444;
-padding:15px;
+padding:14px;
 text-align:center;
 font-size:20px;
 }
@@ -30,9 +29,15 @@ padding:15px;
 
 .card{
 background:#1e293b;
-border-radius:10px;
+border-radius:12px;
 padding:15px;
 margin-bottom:15px;
+animation:fade 0.5s ease;
+}
+
+@keyframes fade{
+from{opacity:0;transform:translateY(10px)}
+to{opacity:1;transform:translateY(0)}
 }
 
 .stats{
@@ -41,18 +46,18 @@ justify-content:space-between;
 }
 
 .stat{
+text-align:center;
 font-size:18px;
 }
 
 #timer{
-font-size:22px;
 text-align:center;
-margin-top:10px;
+font-size:22px;
 }
 
 #result{
-font-size:60px;
 text-align:center;
+font-size:60px;
 margin:10px;
 }
 
@@ -64,13 +69,16 @@ gap:4px;
 
 .cell{
 padding:8px;
-text-align:center;
 border-radius:4px;
 font-size:12px;
+text-align:center;
 }
 
 .big{background:#f59e0b;}
 .small{background:#3b82f6;}
+
+.heat-big{background:#fb923c;}
+.heat-small{background:#60a5fa;}
 
 canvas{
 background:#0f172a;
@@ -83,12 +91,29 @@ border-radius:6px;
 }
 
 button{
-padding:10px 15px;
+padding:10px 16px;
 border:none;
 border-radius:6px;
 background:#22c55e;
 color:white;
 }
+
+.navbar{
+position:fixed;
+bottom:0;
+width:100%;
+background:#1e293b;
+display:flex;
+justify-content:space-around;
+padding:10px 0;
+}
+
+.nav-btn{
+color:white;
+font-size:14px;
+}
+
+.hidden{display:none}
 
 </style>
 
@@ -96,9 +121,7 @@ color:white;
 
 <body>
 
-<header>
-Number Analytics
-</header>
+<header>Number Analytics</header>
 
 <div id="loginPage" class="container">
 
@@ -116,9 +139,9 @@ Number Analytics
 
 </div>
 
-<div id="app" style="display:none">
+<div id="app" class="hidden">
 
-<div class="container">
+<div id="dashboard" class="container">
 
 <div class="card">
 
@@ -133,13 +156,15 @@ Number Analytics
 <div class="card stats">
 
 <div class="stat">
-Big<br>
-<span id="bigCount">0</span>
+Big<br><span id="bigCount">0</span>
 </div>
 
 <div class="stat">
-Small<br>
-<span id="smallCount">0</span>
+Small<br><span id="smallCount">0</span>
+</div>
+
+<div class="stat">
+Prediction<br><span id="prediction">-</span>
 </div>
 
 </div>
@@ -150,13 +175,38 @@ Small<br>
 
 </div>
 
+</div>
+
+<div id="trendPage" class="container hidden">
+
 <div class="card">
 
-<h3>Trend Board</h3>
+<h3>Trend Heatmap</h3>
 
 <div id="trend" class="trend"></div>
 
 </div>
+
+</div>
+
+<div id="statsPage" class="container hidden">
+
+<div class="card">
+
+<h3>Statistics</h3>
+
+Average number: <span id="avg"></span><br>
+Total rounds: <span id="totalRounds"></span>
+
+</div>
+
+</div>
+
+<div class="navbar">
+
+<div class="nav-btn" onclick="showPage('dashboard')">Dashboard</div>
+<div class="nav-btn" onclick="showPage('trendPage')">Trend</div>
+<div class="nav-btn" onclick="showPage('statsPage')">Stats</div>
 
 </div>
 
@@ -176,14 +226,14 @@ history.forEach(h=>{
  else smallCount++
 })
 
-const ctx=document.getElementById('chart')
+const ctx=document.getElementById("chart")
 
 const chart=new Chart(ctx,{
 type:'line',
 data:{
 labels:[],
 datasets:[{
-label:'Number',
+label:'Numbers',
 data:[],
 borderColor:'#22c55e',
 tension:0.3
@@ -194,26 +244,32 @@ tension:0.3
 function login(){
 
 let user=document.getElementById("username").value
-
 if(!user) return alert("Enter username")
 
 localStorage.setItem("demoUser",user)
-
 startApp()
 
 }
 
 function startApp(){
 
-let user=localStorage.getItem("demoUser")
-
 document.getElementById("loginPage").style.display="none"
+document.getElementById("app").classList.remove("hidden")
 
-document.getElementById("app").style.display="block"
-
-document.getElementById("userDisplay").innerText=user
+document.getElementById("userDisplay").innerText=localStorage.getItem("demoUser")
 
 renderTrend()
+updateStats()
+
+}
+
+function showPage(page){
+
+document.getElementById("dashboard").classList.add("hidden")
+document.getElementById("trendPage").classList.add("hidden")
+document.getElementById("statsPage").classList.add("hidden")
+
+document.getElementById(page).classList.remove("hidden")
 
 }
 
@@ -244,10 +300,8 @@ chart.data.labels.push(round)
 chart.data.datasets[0].data.push(num)
 chart.update()
 
-document.getElementById("bigCount").innerText=bigCount
-document.getElementById("smallCount").innerText=smallCount
-
 renderTrend()
+updateStats()
 
 round++
 
@@ -256,20 +310,36 @@ round++
 function renderTrend(){
 
 let board=document.getElementById("trend")
-
 board.innerHTML=""
 
 history.slice(0,100).forEach(h=>{
 
 let cell=document.createElement("div")
 
-cell.className="cell "+(h.size==="Big"?"big":"small")
+cell.className="cell "+(h.size==="Big"?"heat-big":"heat-small")
 
 cell.innerText=h.num
 
 board.appendChild(cell)
 
 })
+
+}
+
+function updateStats(){
+
+document.getElementById("bigCount").innerText=bigCount
+document.getElementById("smallCount").innerText=smallCount
+
+let prediction= bigCount>smallCount ? "Small likely" : "Big likely"
+
+document.getElementById("prediction").innerText=prediction
+
+let sum=history.reduce((a,b)=>a+b.num,0)
+
+document.getElementById("avg").innerText=(history.length?sum/history.length:0).toFixed(2)
+
+document.getElementById("totalRounds").innerText=history.length
 
 }
 
@@ -282,7 +352,6 @@ document.getElementById("timer").innerText="Next round in: "+countdown
 if(countdown===0){
 
 generate()
-
 countdown=30
 
 }
